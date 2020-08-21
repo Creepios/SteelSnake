@@ -145,7 +145,14 @@ public class KeyBoard {
         File file = new File(programData + "/SteelSeries/SteelSeries Engine 3/coreProps.json");
         try {
             InputStream inputStream = new FileInputStream(file);
-            JSONObject address = (JSONObject) new JSONParser().parse(new String(IOUtils.readAllBytes(inputStream)));
+            InputStreamReader isReader = new InputStreamReader(inputStream);
+            BufferedReader reader = new BufferedReader(isReader);
+            StringBuilder sb = new StringBuilder();
+            String str;
+            while((str = reader.readLine())!= null){
+                sb.append(str);
+            }
+            JSONObject address = (JSONObject) new JSONParser().parse(sb.toString());
             port = Integer.parseInt(((String) address.get("address")).substring(10));
         } catch (ParseException | IOException e) {
             e.printStackTrace();
