@@ -2,18 +2,16 @@
 
 package de.creep.steelsnake.utils;
 
-import com.sun.jndi.toolkit.url.Uri;
+import com.google.gson.*;
+import com.google.gson.reflect.TypeToken;
 import de.creep.steelsnake.SteelSnake;
-import org.json.simple.*;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
-import sun.misc.IOUtils;
+import de.cybotic.simplegson.SimpleGson;
 
 import java.awt.*;
 import java.io.*;
 import java.net.*;
-import java.util.*;
 import java.util.List;
+import java.util.*;
 
 public class KeyBoard {
 
@@ -29,8 +27,10 @@ public class KeyBoard {
 
     private Integer port = 0;
     private final SteelSnake steelSnake = SteelSnake.getInstance();
+    private final SimpleGson simpleGson;
 
     public KeyBoard() {
+        simpleGson = steelSnake.getSimpleGson();
         discoverPort();
         setupSSEGame();
         bindFailEvent();
@@ -40,60 +40,60 @@ public class KeyBoard {
     }
 
     public void triggerKey(String key, Color color) {
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("game", "STEELSNAKE");
-        jsonObject.put("event", key);
+        JsonObject gameevent = new JsonObject();
+        simpleGson.setObject(gameevent, "game", "STEELSNAKE");
+        simpleGson.setObject(gameevent, "event", key);
+        JsonObject keycolor = new JsonObject();
+        keycolor.add("red", new JsonPrimitive(color.getRed()));
+        keycolor.add("green", new JsonPrimitive(color.getGreen()));
+        keycolor.add("blue", new JsonPrimitive(color.getBlue()));
 
-        JSONObject dataObject = new JSONObject();
-        JSONObject frameObject = new JSONObject();
-        JSONObject keyColorObject = new JSONObject();
-        keyColorObject.put("red", color.getRed());
-        keyColorObject.put("green", color.getGreen());
-        keyColorObject.put("blue", color.getBlue());
-        frameObject.put("key-color", keyColorObject);
-        dataObject.put("frame", frameObject);
-        jsonObject.put("data", dataObject);
+        //simpleGson.setObject(gameevent, "data/frame/key-color/red", color.getRed());
+        //simpleGson.setObject(gameevent, "data/frame/key-color/green", color.getGreen());
+        //simpleGson.setObject(gameevent, "data/frame/key-color/blue", color.getBlue());
+        simpleGson.setObject(gameevent, "data/frame/key-color", keycolor);
 
-        sendRequest("game_event", jsonObject);
+        sendRequest("game_event", gameevent);
     }
 
     public void triggerKeys(String[] keys, Color color) {
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("game", "STEELSNAKE");
-        JSONArray eventsArray = new JSONArray();
+        JsonObject keyTrigger = new JsonObject();
+        simpleGson.setObject(keyTrigger, "game", "STEELSNAKE");
+        JsonArray eventsArray = new JsonArray();
 
         for (String key : keys) {
-            JSONObject eventObject = new JSONObject();
-            eventObject.put("event", key.toUpperCase());
+            JsonObject eventObject = new JsonObject();
+            JsonObject keycolor = new JsonObject();
+            keycolor.add("red", new JsonPrimitive(color.getRed()));
+            keycolor.add("green", new JsonPrimitive(color.getGreen()));
+            keycolor.add("blue", new JsonPrimitive(color.getBlue()));
+            simpleGson.setObject(eventObject, "event", key.toUpperCase());
+            System.out.println("keycolor1: " + eventObject);
+            simpleGson.setObject(eventObject, "data/frame/key-color/red", color.getRed());
+            System.out.println("keycolor2: " + eventObject);
+            simpleGson.setObject(eventObject, "data/frame/key-color/green", color.getGreen());
+            System.out.println("keycolor3: " + eventObject);
+            simpleGson.setObject(eventObject, "data/frame/key-color/blue", color.getBlue());
+            //simpleGson.setObject(eventObject, "data/frame/key-color", keycolor);
 
-            JSONObject dataObject = new JSONObject();
-            JSONObject frameObject = new JSONObject();
-            JSONObject keyColorObject = new JSONObject();
-            keyColorObject.put("red", color.getRed());
-            keyColorObject.put("green", color.getGreen());
-            keyColorObject.put("blue", color.getBlue());
-            frameObject.put("key-color", keyColorObject);
-            dataObject.put("frame", frameObject);
-            eventObject.put("data", dataObject);
             eventsArray.add(eventObject);
+            System.out.println("keycolor4: " + eventObject);
         }
 
-        jsonObject.put("events", eventsArray);
-        sendRequest("multiple_game_events", jsonObject);
+        simpleGson.setObject(keyTrigger, "events", eventsArray);
+        sendRequest("multiple_game_events", keyTrigger);
     }
 
     public void triggerFail() {
         steelSnake.setPaused(true);
 
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("game", "STEELSNAKE");
-        jsonObject.put("event", "FAIL");
+        JsonObject triggerFail = new JsonObject();
+        simpleGson.setObject(triggerFail, "game", "STEELSNAKE");
+        simpleGson.setObject(triggerFail, "event", "FAIL");
+        simpleGson.setObject(triggerFail, "data/value", new Random().nextInt(100));
 
-        JSONObject dataObject = new JSONObject();
-        dataObject.put("value", new Random().nextInt(100));
-        jsonObject.put("data", dataObject);
+        sendRequest("game_event", triggerFail);
 
-        sendRequest("game_event", jsonObject);
         Timer timer = new Timer();
         timer.schedule(new TimerTask() {
             @Override
@@ -149,91 +149,86 @@ public class KeyBoard {
             BufferedReader reader = new BufferedReader(isReader);
             StringBuilder sb = new StringBuilder();
             String str;
-            while((str = reader.readLine())!= null){
+            while ((str = reader.readLine()) != null) {
                 sb.append(str);
             }
-            JSONObject address = (JSONObject) new JSONParser().parse(sb.toString());
-            port = Integer.parseInt(((String) address.get("address")).substring(10));
-        } catch (ParseException | IOException e) {
+
+            JsonObject addressObject = (JsonObject) JsonParser.parseString(sb.toString());
+            String address = simpleGson.getObject(addressObject, "address", new TypeToken<String>(){}.getType());
+            port = Integer.parseInt((address).substring(10));
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     private void setupSSEGame() {
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("game", "STEELSNAKE");
-        jsonObject.put("game_display_name", "SteelSnake");
-        jsonObject.put("developer", "Creepios");
-        jsonObject.put("deinitialize_timer_length_ms", 1000);
-        sendRequest("game_metadata", jsonObject);
+        JsonObject setupGame = new JsonObject();
+        simpleGson.setObject(setupGame, "game", "STEELSNAKE");
+        simpleGson.setObject(setupGame, "game_display_name", "SteelSnake");
+        simpleGson.setObject(setupGame, "developer", "Creepios");
+        simpleGson.setObject(setupGame, "deinitialize_timer_length_ms", 1000);
+
+        sendRequest("game_metadata", setupGame);
     }
 
     private void bindClearEvent() {
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("game", "STEELSNAKE");
-        jsonObject.put("event", "CLEAR");
-        jsonObject.put("min_value", 0);
-        jsonObject.put("max_value", 100);
-        jsonObject.put("icon_id", 1);
+        JsonObject bindClear = new JsonObject();
+        simpleGson.setObject(bindClear, "game", "STEELSNAKE");
+        simpleGson.setObject(bindClear, "event", "CLEAR");
+        simpleGson.setObject(bindClear, "min_value", 0);
+        simpleGson.setObject(bindClear, "max_value", 100);
+        simpleGson.setObject(bindClear, "icon_id", 1);
 
-        JSONObject mainInfo = new JSONObject();
-        mainInfo.put("device-type", "keyboard");
-        mainInfo.put("zone", "all");
-        mainInfo.put("mode", "count");
+        JsonObject mainInfo = new JsonObject();
+        simpleGson.setObject(mainInfo, "device-type", "keyboard");
+        simpleGson.setObject(mainInfo,"zone", "all");
+        simpleGson.setObject(mainInfo,"mode", "count");
 
-        JSONObject staticColor = new JSONObject();
-        staticColor.put("red", 0);
-        staticColor.put("green", 0);
-        staticColor.put("blue", 0);
-        mainInfo.put("color", staticColor);
-        JSONArray handlers = new JSONArray();
+        simpleGson.setObject(mainInfo,"color/red", 0);
+        simpleGson.setObject(mainInfo,"color/green", 0);
+        simpleGson.setObject(mainInfo,"color/blue", 0);
+
+        JsonArray handlers = new JsonArray();
         handlers.add(mainInfo);
-        jsonObject.put("handlers", handlers);
+        simpleGson.setObject(bindClear,  "handlers", handlers);
 
-        sendRequest("bind_game_event", jsonObject);
+        sendRequest("bind_game_event", bindClear);
     }
 
     public void clearKeyBoard() {
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("game", "STEELSNAKE");
-        jsonObject.put("event", "CLEAR");
+        JsonObject clearKeyBoard = new JsonObject();
+        simpleGson.setObject(clearKeyBoard, "game", "STEELSNAKE");
+        simpleGson.setObject(clearKeyBoard, "event", "CLEAR");
+        simpleGson.setObject(clearKeyBoard, "data/value", new Random().nextInt(100));
 
-        JSONObject dataObject = new JSONObject();
-        dataObject.put("value", new Random().nextInt(100));
-        jsonObject.put("data", dataObject);
-
-        sendRequest("game_event", jsonObject);
+        sendRequest("game_event", clearKeyBoard);
     }
 
     private void bindFailEvent() {
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("game", "STEELSNAKE");
-        jsonObject.put("event", "FAIL");
-        jsonObject.put("min_value", 0);
-        jsonObject.put("max_value", 100);
-        jsonObject.put("icon_id", 1);
+        JsonObject bindFail = new JsonObject();
+        simpleGson.setObject(bindFail, "game", "STEELSNAKE");
+        simpleGson.setObject(bindFail, "event", "FAIL");
+        simpleGson.setObject(bindFail, "min_value", 0);
+        simpleGson.setObject(bindFail, "max_value", 100);
+        simpleGson.setObject(bindFail, "icon_id", 1);
 
-        JSONObject mainInfo = new JSONObject();
-        mainInfo.put("device-type", "keyboard");
-        mainInfo.put("zone", "all");
-        mainInfo.put("mode", "percent");
+        JsonObject mainInfo = new JsonObject();
+        simpleGson.setObject(mainInfo, "device-type", "keyboard");
+        simpleGson.setObject(mainInfo, "zone", "all");
+        simpleGson.setObject(mainInfo, "mode", "percent");
 
-        JSONObject staticColor = new JSONObject();
-        staticColor.put("red", 194);
-        staticColor.put("green", 56);
-        staticColor.put("blue", 48);
-        mainInfo.put("color", staticColor);
+        simpleGson.setObject(mainInfo, "color/red", 194);
+        simpleGson.setObject(mainInfo, "color/green", 56);
+        simpleGson.setObject(mainInfo, "color/blue", 48);
 
-        JSONObject rateInfo = new JSONObject();
-        rateInfo.put("frequency", 4);
-        rateInfo.put("repeat_limit", 7);
-        mainInfo.put("rate", rateInfo);
+        simpleGson.setObject(mainInfo, "rate/frequency", 4);
+        simpleGson.setObject(mainInfo, "rate/repeat_limit", 7);
 
-        JSONArray handlers = new JSONArray();
+        JsonArray handlers = new JsonArray();
         handlers.add(mainInfo);
-        jsonObject.put("handlers", handlers);
+        simpleGson.setObject(bindFail, "handlers", handlers);
 
-        sendRequest("bind_game_event", jsonObject);
+        sendRequest("bind_game_event", bindFail);
     }
 
     private void bindKeys() {
@@ -241,28 +236,30 @@ public class KeyBoard {
             for (KBL letter : chars) {
                 String key = letter.getKey();
                 String alternative = letter.getAlternative().toUpperCase();
-                JSONObject jsonObject = new JSONObject();
-                jsonObject.put("game", "STEELSNAKE");
-                jsonObject.put("event", alternative);
-                jsonObject.put("min_value", 0);
-                jsonObject.put("max_value", 100);
-                jsonObject.put("icon_id", 1);
+                JsonObject bindKeys = new JsonObject();
+                simpleGson.setObject(bindKeys, "game", "STEELSNAKE");
+                simpleGson.setObject(bindKeys, "event", alternative);
+                simpleGson.setObject(bindKeys, "min_value", 0);
+                simpleGson.setObject(bindKeys, "max_value", 100);
+                simpleGson.setObject(bindKeys, "icon_id", 1);
 
-                JSONObject mainInfo = new JSONObject();
-                mainInfo.put("device-type", "keyboard");
-                mainInfo.put("zone", key);
-                mainInfo.put("mode", "context-color");
-                mainInfo.put("context-frame-key", "key-color");
-                JSONArray handlers = new JSONArray();
+                JsonObject mainInfo = new JsonObject();
+                simpleGson.setObject(mainInfo, "device-type", "keyboard");
+                simpleGson.setObject(mainInfo, "zone", key);
+                simpleGson.setObject(mainInfo, "mode", "context-color");
+                simpleGson.setObject(mainInfo, "context-frame-key", "key-color");
+
+                JsonArray handlers = new JsonArray();
                 handlers.add(mainInfo);
-                jsonObject.put("handlers", handlers);
+                simpleGson.setObject(bindKeys, "handlers", handlers);
 
-                sendRequest("bind_game_event", jsonObject);
+                sendRequest("bind_game_event", bindKeys);
             }
         }
     }
 
-    private void sendRequest(String urlPath, JSONObject object) {
+    private void sendRequest(String urlPath, JsonObject object) {
+        System.out.println(object);
         URL url = null;
         try {
             url = new URI("http://127.0.0.1:" + port + "/" + urlPath).toURL();
@@ -281,7 +278,7 @@ public class KeyBoard {
             connection.connect();
 
             DataOutputStream wr = new DataOutputStream(connection.getOutputStream());
-            wr.writeBytes(object.toJSONString());
+            wr.writeBytes(object.toString());
             wr.close();
 
             InputStream is = connection.getInputStream();
@@ -293,7 +290,7 @@ public class KeyBoard {
 
         } catch (IOException e) {
             e.printStackTrace();
-            System.out.println("FAIL: " + object.toJSONString());
+            System.out.println("FAIL: " + object.toString());
         } finally {
             if (connection != null) {
                 connection.disconnect();

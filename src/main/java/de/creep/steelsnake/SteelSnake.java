@@ -2,6 +2,8 @@
 
 package de.creep.steelsnake;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.tulskiy.keymaster.common.Provider;
 import de.creep.steelsnake.hotkeys.DownListener;
 import de.creep.steelsnake.hotkeys.LeftListener;
@@ -10,6 +12,9 @@ import de.creep.steelsnake.hotkeys.UpListener;
 import de.creep.steelsnake.utils.Direction;
 import de.creep.steelsnake.utils.KeyBoard;
 import de.creep.steelsnake.utils.Position;
+import de.cybotic.simplegson.SimpleGson;
+import lombok.Getter;
+import lombok.Setter;
 
 import javax.swing.*;
 import java.awt.event.KeyEvent;
@@ -21,15 +26,35 @@ import java.util.TimerTask;
 public class SteelSnake {
 
     private final static Provider provider = Provider.getCurrentProvider(false);
+    private Direction snakeDirection;
+
+    @Getter
     private KeyBoard keyboard;
 
+    @Getter
+    @Setter
     private Position apple;
+
+    @Getter
     private final ArrayList<Position> snake = new ArrayList<>();
-    private Direction snakeDirection;
+
+    @Getter
+    @Setter
     private int score = 0;
+
+    @Getter
+    @Setter
     private Position tail = null;
+
+    @Getter
+    @Setter
     private boolean paused = false;
 
+    @Getter
+    @Setter
+    private SimpleGson simpleGson;
+
+    @Getter
     private static SteelSnake instance;
 
     public static void main(String[] args) {
@@ -38,6 +63,10 @@ public class SteelSnake {
     }
 
     public void onStart(String[] args) {
+        simpleGson = new SimpleGson(new GsonBuilder()
+                .serializeNulls()
+                .setPrettyPrinting()
+                .create());
         keyboard = new KeyBoard();
 
         registerKeyStrokes();
@@ -142,47 +171,4 @@ public class SteelSnake {
         keyboard.triggerFail();
     }
 
-    public Position getApple() {
-        return apple;
-    }
-
-    public void setApple(Position apple) {
-        this.apple = apple;
-    }
-
-    public int getScore() {
-        return score;
-    }
-
-    public void setScore(int score) {
-        this.score = score;
-    }
-
-    public Position getTail() {
-        return tail;
-    }
-
-    public void setTail(Position tail) {
-        this.tail = tail;
-    }
-
-    public boolean isPaused() {
-        return paused;
-    }
-
-    public void setPaused(boolean paused) {
-        this.paused = paused;
-    }
-
-    public ArrayList<Position> getSnake() {
-        return snake;
-    }
-
-    public static SteelSnake getInstance() {
-        return instance;
-    }
-
-    public KeyBoard getKeyboard() {
-        return keyboard;
-    }
 }
